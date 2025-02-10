@@ -352,6 +352,15 @@ class SimVehicleData:
         pose = Pose.from_bytes(data[speed_and_steering_size:])
         return SimVehicleData(speed, steering_angle, pose)
 
+# Camera
+
+class ImageParams:
+    def __init__(self, width: int, height: int, fov_deg: float):
+        self.width = width
+        self.height = height
+        self.fov_deg = fov_deg
+
+
 
 # Simulation
 # -------------------------------------------------------------------------------------------------
