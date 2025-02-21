@@ -156,6 +156,7 @@ class IMUData(SerializablePrimitive):
         ]
 
 
+# TODO: speed is calculated - move somewhere else
 class EncoderData(SerializablePrimitive):
     FORMAT = "=Qiid"
     SIZE = struct.calcsize(FORMAT)
@@ -236,6 +237,7 @@ class JPGImageData(Serializable):
         return struct.calcsize("=Q") + len(self.jpg)
 
 
+# TODO: pose is calculated -> move somewhere else
 class SensorData(SerializableComplex):
     COMPONENTS = [IMUData, EncoderData, EncoderData, Pose]
     SIZE = sum([c.SIZE for c in COMPONENTS])
@@ -256,17 +258,17 @@ class SensorData(SerializableComplex):
         return [self.imu, self.rleft_encoder, self.rright_encoder, self.pose]
 
 
-class RemoteControlData(SerializablePrimitive):
+class ControlData(SerializablePrimitive):
     FORMAT = "=Q2d"
     SIZE = struct.calcsize(FORMAT)
 
-    def __init__(self, timestamp: int, set_speed: float, set_steering_angle: float):
+    def __init__(self, timestamp: int, v: float, sa: float):
         self.timestamp = timestamp
-        self.set_speed = set_speed
-        self.set_steering_angle = set_steering_angle
+        self.v = v
+        self.sa = sa
 
     def to_list(self):
-        return [self.timestamp, self.set_speed, self.set_steering_angle]
+        return [self.timestamp, self.v, self.sa]
 
 
 # -------------------------------------------------------------------------------------------------
@@ -280,6 +282,7 @@ class SimCameraData:
     DEPTH_IMAGE_SIZE = W * H * 2
     SIZE = struct.calcsize(FORMAT) + RGB_IMAGE_SIZE + DEPTH_IMAGE_SIZE
 
+    # TODO: rename rgb/depth_image to rgb/depth here and in UE 
     def __init__(
         self,
         rgb_image: np.ndarray[Any, np.dtype[np.uint8]],
@@ -371,14 +374,14 @@ class SimData:
     FORMAT_SIZE = struct.calcsize(FORMAT)
     SIZE = SimCameraData.SIZE + SimVehicleData.SIZE + FORMAT_SIZE
 
-    def __init__(self, camera_data: SimCameraData, vehicle_data: SimVehicleData, dt: float):
-        self.camera_data = camera_data
-        self.vehicle_data = vehicle_data
+    def __init__(self, camera: SimCameraData, vehicle_data: SimVehicleData, dt: float):
+        self.camera = camera
+        self.vehicle = vehicle_data
         self.dt = dt
 
     def to_bytes(self):
-        b = self.camera_data.to_bytes()
-        b += self.vehicle_data.to_bytes()
+        b = self.camera.to_bytes()
+        b += self.vehicle.to_bytes()
         b += struct.pack(SimData.FORMAT, self.dt)
         return b
 
@@ -432,6 +435,8 @@ class UIConfigData:
         )
 
 
-class ControllerData:
-    def __init__(self, image: np.ndarray):
-        self.image = image
+class ProcessedData:
+    def __init__(self, debug_image: np.ndarray, depth, original: SimData = None):
+        self.debug_image: np.ndarray = debug_image
+        self.depth = depth
+        self.original: SimData = original

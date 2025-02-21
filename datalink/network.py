@@ -5,10 +5,11 @@ import socket
 from multiprocessing import Process
 from threading import Thread, Event
 from typing import Tuple
+from cv2 import imencode, IMWRITE_JPEG_QUALITY
+
 
 from datalink.ipc import messaging
-from datalink.utils import jpg_encode  # TODO: could be handled by the original process                                                             
-from datalink.data import JPGImageData, RawImageData, RemoteControlData, SensorData, SimData
+from datalink.data import JPGImageData, RawImageData, ControlData, SensorData, SimData
 
 MAX_DGRAM_SIZE = 2**16
 
@@ -38,7 +39,8 @@ class ImageDataSender(Thread):
             self._sock = sock
             while True:
                 raw_image_data: RawImageData = q.get()
-                jpg = jpg_encode(raw_image_data.image_array, 80)
+                # TODO: handle by original process?
+                _, jpg = imencode(".jpg", raw_image_data.image_array, [int(IMWRITE_JPEG_QUALITY), 80])
                 self._send(jpg, raw_image_data.timestamp)
 
     def _send(self, image, timestamp: int):
@@ -219,7 +221,7 @@ class TcpConnection:
             self._socket.settimeout(1.0)  # Set a timeout of 1 second
             while not exit_event.is_set():
                 try:
-                    data: RemoteControlData = q.get(timeout=1)
+                    data: ControlData = q.get(timeout=1)
                     if data is not None:
                         self._socket.sendall(data.to_bytes())
                 except socket.timeout:
