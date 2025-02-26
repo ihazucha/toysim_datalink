@@ -218,7 +218,7 @@ class TcpConnection:
     def receive_loop(self):
         def send(exit_event: Event):
             q = messaging.q_control.get_consumer()
-            self._socket.settimeout(1.0)  # Set a timeout of 1 second
+            self._socket.settimeout(5.0)  # Set a timeout of 1 second
             while not exit_event.is_set():
                 try:
                     data: ControlData = q.get(timeout=1)

@@ -436,7 +436,8 @@ class UIConfigData:
 
 
 class ProcessedData:
-    def __init__(self, debug_image: np.ndarray, depth, original: SimData = None):
+    def __init__(self, dt: float, debug_image: np.ndarray, depth, original: SimData):
+        self.dt: float = dt
         self.debug_image: np.ndarray = debug_image
         self.depth = depth
         self.original: SimData = original
