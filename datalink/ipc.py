@@ -75,11 +75,12 @@ class SPMCQueue:
 
 class Messaging:
     def __init__(self):
-        self.q_image = SPMCQueue(port=10001)
-        self.q_sensor = SPMCQueue(port=10002)
-        self.q_control = SPMCQueue(port=10003)
+        self.q_vehicle_sensors = SPMCQueue(port=10002)
         self.q_simulation = SPMCQueue(port=10004)
+        
         self.q_processing = SPMCQueue(port=10005)
+        
+        self.q_control = SPMCQueue(port=10003)
         self.q_ui = SPMCQueue(port=10006)
 
 messaging = Messaging()

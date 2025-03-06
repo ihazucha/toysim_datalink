@@ -157,6 +157,86 @@ class RemoteDataReceiver(Thread):
 
 # --------------------
 
+class TcpClient(Process):
+    def __init__(self, addr: Tuple):
+        super().__init__()
+        self._addr = addr
+        self._sock = self._connect
+
+    def __del__(self):
+        self._close()
+
+    def _connect(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.connect(self._addr)
+        self._log(f"Connected to: {self._addr}")
+        return sock
+
+    def _close(self):
+        if self._sock is None:
+            return
+        try:
+            self._log(f"Closing cocket...")
+            self._sock.shutdown(socket.SHUT_RDWR)
+            self._sock.close()
+            self._log(f"Socket closed")
+        except OSError as e:
+            self._log(f"Error while closing socket: {e}")
+            pass
+
+    def _recv_data(self, size):
+        data = b""
+        while len(data) < size:
+            more = self._socket.recv(size - len(data))
+            if not more:
+                raise IOError("Socket closed before all data received")
+            data += more
+        return data
+
+    def run(self):
+        def send(exit_event: Event):
+            q = messaging.q_vehicle_sensors.get_consumer()
+            self._socket.settimeout(5.0)  # TODO: handle gracefully
+            while not exit_event.is_set():
+                try:
+                    data: ControlData = q.get(timeout=1)
+                    if data is None:
+                        self._log("Timeout on data send")
+                        self._socket.sendall(data.to_bytes())
+                except socket.timeout:
+                    if exit_event.is_set():
+                        break
+                except OSError:
+                    exit_event.set()
+                    self._log("Send failed - connection closed by client")
+                    break
+
+        def recv(exit_event: Event):
+            q = messaging.q_control.get_producer()
+            while not exit_event.is_set():
+                try:
+                    size = self._socket.recv(ControlData.SIZE)
+                    data = self._recv_data(size)
+                    q.put(data)
+                except OSError:
+                    self._log("Recv failed - connection closed by client")
+                    exit_event.set()
+                    break
+
+        exit_event = Event()
+        t_recv = Thread(target=recv, args=[exit_event], daemon=True)
+        t_send = Thread(target=send, args=[exit_event], daemon=True)
+        ts = [t_recv, t_send]
+        [t.start() for t in ts]
+        exit_event.wait()
+        self._log("Shutting down send and recv threads..")
+        [t.join() for t in ts]
+        self._log("send and recv threads shut down")
+
+    def _log(self, msg: str):
+        print(f"[{self.__class__.__name__}] {msg}")
+
 
 class TcpServer(Process):
     def __init__(self, server_ip: str):
@@ -180,7 +260,7 @@ class TcpServer(Process):
             sock, addr = self._sock.accept()
             self._log(f"Connected: {addr}")
             connection = TcpConnection(sock)
-            connection.receive_loop()
+            connection.run()
             del connection
             self._log(f"Disconnected: {addr}")
 
@@ -216,7 +296,7 @@ class TcpConnection:
             data += more
         return data
 
-    def receive_loop(self):
+    def run(self):
         def send(exit_event: Event):
             q = messaging.q_control.get_consumer()
             self._socket.settimeout(5.0)  # Set a timeout of 1 second
@@ -250,9 +330,9 @@ class TcpConnection:
         ts = [t_recv, t_send]
         [t.start() for t in ts]
         exit_event.wait()
-        print("[Connection] Shutting down send and recv threads..")
+        self._log("Shutting down send and recv threads..")
         [t.join() for t in ts]
-        print("[Connection] send and recv threads shut down")
+        self._log("send and recv threads shut down")
 
 
 # --------------------
