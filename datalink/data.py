@@ -262,13 +262,13 @@ class ControlData(SerializablePrimitive):
     FORMAT = "=Q2d"
     SIZE = struct.calcsize(FORMAT)
 
-    def __init__(self, timestamp: int, v: float, sa: float):
+    def __init__(self, timestamp: int, speed: float, steering_angle: float):
         self.timestamp = timestamp
-        self.v = v
-        self.sa = sa
+        self.speed = speed
+        self.steering_angle = steering_angle
 
     def to_list(self):
-        return [self.timestamp, self.v, self.sa]
+        return [self.timestamp, self.speed, self.steering_angle]
 
 
 # -------------------------------------------------------------------------------------------------
@@ -282,7 +282,7 @@ class SimCameraData:
     DEPTH_IMAGE_SIZE = W * H * 2
     SIZE = struct.calcsize(FORMAT) + RGB_IMAGE_SIZE + DEPTH_IMAGE_SIZE
 
-    # TODO: rename rgb/depth_image to rgb/depth here and in UE 
+    # TODO: rename rgb/depth_image to rgb/depth here and in UE
     def __init__(
         self,
         rgb_image: np.ndarray[Any, np.dtype[np.uint8]],
@@ -355,14 +355,15 @@ class SimVehicleData:
         pose = Pose.from_bytes(data[speed_and_steering_size:])
         return SimVehicleData(speed, steering_angle, pose)
 
+
 # Camera
+
 
 class ImageParams:
     def __init__(self, width: int, height: int, fov_deg: float):
         self.width = width
         self.height = height
         self.fov_deg = fov_deg
-
 
 
 # Simulation
@@ -404,40 +405,30 @@ class SimData:
 # -------------------------------------------------------------------------------------------------
 
 
-class UIConfigData:
-    # SET_SPEED = 1800
-    # KDD = 1.8
-    # CLIP_LOW = 500
-    # CLIP_HIGH = 2600
-    SET_SPEED = 2000
-    KDD = 2.2
-    CLIP_LOW = 300
-    CLIP_HIGH = 2400
+class PurePursuitPIDConfig:
+    speed_setpoint = 2000
+    lookahead_factor = 2.2
+    lookahead_l_min = 300
+    lookahead_l_max = 2400
 
     def __init__(
         self,
-        set_speed: float = SET_SPEED,
-        kdd: float = KDD,
-        clip_low: float = CLIP_LOW,
-        clip_high: float = CLIP_HIGH,
+        speed_setpoint: float = speed_setpoint,
+        lookahead_factor: float = lookahead_factor,
+        lookahead_l_min: float = lookahead_l_min,
+        lookahead_l_max: float = lookahead_l_max,
     ):
-        self.set_speed = set_speed
-        self.kdd = kdd
-        self.clip_low = clip_low
-        self.clip_high = clip_high
-
-    def __str__(self):
-        return (
-            f"ConfigData(set_speed={self.set_speed}, "
-            f"kdd={self.kdd}, "
-            f"clip_low={self.clip_low}, "
-            f"clip_high={self.clip_high})"
-        )
+        self.speed_setpoint = speed_setpoint
+        self.lookahead_factor = lookahead_factor
+        self.lookahead_l_min = lookahead_l_min
+        self.lookahead_l_max = lookahead_l_max
 
 
 class ProcessedData:
-    def __init__(self, dt: float, debug_image: np.ndarray, depth, original: SimData):
-        self.dt: float = dt
+    def __init__(
+        self, begin_timestamp: int, debug_image: np.ndarray, depth: np.ndarray, original: SimData
+    ):
+        self.begin_timestamp = begin_timestamp
         self.debug_image: np.ndarray = debug_image
         self.depth = depth
         self.original: SimData = original

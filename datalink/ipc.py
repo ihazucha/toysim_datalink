@@ -1,7 +1,10 @@
+from multiprocessing.sharedctypes import Synchronized
 import zmq
 
 from typing import Any
 from multiprocessing import Value
+from time import time_ns
+
 
 
 class SPMCQueue:
@@ -23,10 +26,15 @@ class SPMCQueue:
         return SPMCQueue.Consumer(self._port)
 
     class Producer:
-        def __init__(self, port: int, has_producer):
+        def __init__(self, port: int, has_producer: Synchronized, real_time=True):
             self._port = port
             self._has_producer = has_producer
             self._socket = SPMCQueue.ZMQ_CONTEXT.socket(zmq.PUB)
+            if real_time:
+                # High water mark - limits queue size
+                self._socket.set_hwm(1)
+                # Always deliver the most recent message
+                self._socket.setsockopt(zmq.CONFLATE, 1)
             self._socket.bind(f"tcp://*:{self._port}")
 
         def __del__(self):
@@ -35,14 +43,22 @@ class SPMCQueue:
             self._has_producer.value = False
 
         def put(self, data: Any):
-            self._socket.send_pyobj(data)
+            self._socket.send_pyobj((time_ns(), data))
 
     class Consumer:
-        def __init__(self, port: int):
+        def __init__(self, port: int, real_time=True):
             self._port = port
             self._socket = SPMCQueue.ZMQ_CONTEXT.socket(zmq.SUB)
+            if real_time:
+                # High water mark - limits queue size
+                self._socket.set_hwm(1)
+                # Always deliver the most recent message
+                self._socket.setsockopt(zmq.CONFLATE, 1)
             self._socket.connect(f"tcp://localhost:{self._port}")
             self._socket.subscribe("")
+
+            self.last_put_timestamp = None
+            self.last_get_timestamp = None
 
         def __del__(self):
             if self._socket and not self._socket.closed:
@@ -52,7 +68,9 @@ class SPMCQueue:
             e = self._socket.poll(timeout)
             if e == 0:
                 return None
-            return self._socket.recv_pyobj()
+            self.last_put_timestamp, data = self._socket.recv_pyobj()
+            self.last_get_timestamp = time_ns()
+            return data
 
 
 class Messaging:

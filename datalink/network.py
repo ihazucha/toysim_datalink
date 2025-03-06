@@ -168,6 +168,7 @@ class TcpServer(Process):
 
     def _bind_listen(self, addr: tuple):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(addr)
         sock.listen()
         self._log(f"Active on: {addr}")
