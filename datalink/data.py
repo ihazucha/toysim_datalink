@@ -148,7 +148,7 @@ class SensorFusionData:
 
     @classmethod
     def from_bytes(cls, data: bytes):
-        return cls(pickle.loads(data))
+        return pickle.loads(data)
 
     def to_bytes(self):
         data_bytes = pickle.dumps(self)
