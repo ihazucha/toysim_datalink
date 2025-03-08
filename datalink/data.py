@@ -151,8 +151,8 @@ class SensorFusionData:
         return cls(pickle.loads(data))
 
     def to_bytes(self):
-        return pickle.dumps(self)
-
+        data_bytes = pickle.dumps(self)
+        return struct.pack("I", len(data_bytes)) + data_bytes
 
 class ActuatorsData(SerializablePrimitive):
     FORMAT = "=Q3d"
