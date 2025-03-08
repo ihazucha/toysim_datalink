@@ -328,10 +328,12 @@ class TcpConnection:
                     break
 
         def recv(exit_event: Event):
-            q = messaging.q_simulation.get_producer()
+            # q = messaging.q_simulation.get_producer()
+            q = messaging.q_sensor_fusion.get_producer()
             while not exit_event.is_set():
                 try:
-                    data = self._recv_data(SimData.SIZE)
+                    size = struct.unpack("I", self._socket.recv(4))[0]
+                    data = self._recv_data(size)
                     q.put(data)
                 except OSError:
                     self._log("Recv failed - connection closed by client")
