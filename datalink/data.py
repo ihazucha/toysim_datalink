@@ -1,5 +1,6 @@
 import struct
 import numpy as np
+import pickle
 
 from typing import Type, Any
 
@@ -66,19 +67,6 @@ class SerializableComplex(Serializable):
 # -------------------------------------------------------------------------------------------------
 
 
-# TODO: use timestamp to have precise time and ID to look for lost data
-class DataHeader(SerializablePrimitive):
-    FORMAT = "=2Q"
-    SIZE = struct.calcsize(FORMAT)
-
-    def __init__(self, timestamp: int, id: int = 0):
-        self.timestamp = timestamp
-        self.id = id
-
-    def to_list(self):
-        return [self.timestamp, self.id]
-
-
 class Position(SerializablePrimitive):
     FORMAT = "=3d"
     SIZE = struct.calcsize(FORMAT)
@@ -127,48 +115,43 @@ class IMUData(SerializablePrimitive):
     SIZE = struct.calcsize(FORMAT)
 
     def __init__(
-        self,
-        timestamp: int,
-        ax: float,
-        ay: float,
-        az: float,
-        wroll: float,
-        wpitch: float,
-        wyaw: float,
+        self, timestamp: int, ax: float, ay: float, az: float, wr: float, wp: float, wy: float
     ):
         self.timestamp = timestamp
-        self.ax = ax
-        self.ay = ay
-        self.az = az
-        self.wroll = wroll
-        self.wpitch = wpitch
-        self.wyaw = wyaw
+        self.ax, self.ay, self.az = ax, ay, az
+        self.wr, self.wp, self.wy = wr, wp, wy
 
     def to_list(self):
-        return [
-            self.timestamp,
-            self.ax,
-            self.ay,
-            self.az,
-            self.wroll,
-            self.wpitch,
-            self.wroll,
-        ]
+        return [self.timestamp, self.ax, self.ay, self.az, self.wr, self.wp, self.wrs]
 
 
-# TODO: speed is calculated - move somewhere else
 class EncoderData(SerializablePrimitive):
-    FORMAT = "=Qiid"
+    FORMAT = "=Qii"
     SIZE = struct.calcsize(FORMAT)
 
-    def __init__(self, timestamp: int, position: int, magnitude: int, speed: float):
+    def __init__(self, timestamp: int, position: int, magnitude: int):
         self.timestamp = timestamp
         self.position = position
         self.magnitude = magnitude
-        self.speed = speed
 
     def to_list(self):
-        return [self.timestamp, self.position, self.magnitude, self.speed]
+        return [self.timestamp, self.position, self.magnitude]
+
+
+class SensorFusionData:
+    def __init__(self, timestamp: int, last_timestamp: int, camera, encoders, imu):
+        self.timestamp = timestamp
+        self.last_timestamp = last_timestamp
+        self.camera = camera
+        self.encoders = encoders
+        self.imu = imu
+
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        return cls(pickle.loads(data))
+
+    def to_bytes(self):
+        return pickle.dumps(self)
 
 
 class ActuatorsData(SerializablePrimitive):
@@ -237,7 +220,6 @@ class JPGImageData(Serializable):
         return struct.calcsize("=Q") + len(self.jpg)
 
 
-# TODO: pose is calculated -> move somewhere else
 class SensorData(SerializableComplex):
     COMPONENTS = [IMUData, EncoderData, EncoderData, Pose]
     SIZE = sum([c.SIZE for c in COMPONENTS])
@@ -247,15 +229,13 @@ class SensorData(SerializableComplex):
         imu: IMUData,
         rleft_encoder: EncoderData,
         rright_encoder: EncoderData,
-        pose: Pose,
     ):
         self.imu = imu
         self.rleft_encoder = rleft_encoder
         self.rright_encoder = rright_encoder
-        self.pose = pose
 
     def to_list(self):
-        return [self.imu, self.rleft_encoder, self.rright_encoder, self.pose]
+        return [self.imu, self.rleft_encoder, self.rright_encoder]
 
 
 class ControlData(SerializablePrimitive):
@@ -271,6 +251,7 @@ class ControlData(SerializablePrimitive):
         return [self.timestamp, self.speed, self.steering_angle]
 
 
+# Simulation
 # -------------------------------------------------------------------------------------------------
 
 
@@ -356,20 +337,6 @@ class SimVehicleData:
         return SimVehicleData(speed, steering_angle, pose)
 
 
-# Camera
-
-
-class ImageParams:
-    def __init__(self, width: int, height: int, fov_deg: float):
-        self.width = width
-        self.height = height
-        self.fov_deg = fov_deg
-
-
-# Simulation
-# -------------------------------------------------------------------------------------------------
-
-
 class SimData:
     FORMAT = "f"
     FORMAT_SIZE = struct.calcsize(FORMAT)
@@ -399,6 +366,17 @@ class SimData:
         data_end += struct.calcsize(SimData.FORMAT)
         dt = struct.unpack(SimData.FORMAT, data_memory_view[data_start:data_end])[0]
         return SimData(camera_data, vehicle_data, dt)
+
+
+# Camera
+# -------------------------------------------------------------------------------------------------
+
+
+class ImageParams:
+    def __init__(self, width: int, height: int, fov_deg: float):
+        self.width = width
+        self.height = height
+        self.fov_deg = fov_deg
 
 
 # UI

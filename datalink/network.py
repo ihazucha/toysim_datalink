@@ -2,14 +2,16 @@ import struct
 import math
 import socket
 
+from time import sleep
+
 from multiprocessing import Process
 from threading import Thread, Event
 from typing import Tuple
 from cv2 import imencode, IMWRITE_JPEG_QUALITY
 
 
-from datalink.ipc import messaging
-from datalink.data import JPGImageData, RawImageData, ControlData, SensorData, SimData
+from modules.messaging import messaging
+from datalink.data import JPGImageData, RawImageData, ControlData, SensorData, SimData, SensorFusionData
 
 MAX_DGRAM_SIZE = 2**16
 
@@ -40,7 +42,9 @@ class ImageDataSender(Thread):
             while True:
                 raw_image_data: RawImageData = q.get()
                 # TODO: handle by original process?
-                _, jpg = imencode(".jpg", raw_image_data.image_array, [int(IMWRITE_JPEG_QUALITY), 80])
+                _, jpg = imencode(
+                    ".jpg", raw_image_data.image_array, [int(IMWRITE_JPEG_QUALITY), 80]
+                )
                 self._send(jpg, raw_image_data.timestamp)
 
     def _send(self, image, timestamp: int):
@@ -157,53 +161,63 @@ class RemoteDataReceiver(Thread):
 
 # --------------------
 
+
 class TcpClient(Process):
     def __init__(self, addr: Tuple):
         super().__init__()
-        self._addr = addr
-        self._sock = self._connect
-
-    def __del__(self):
-        self._close()
+        self.addr = addr
+        self.sock = None
+        self.time_to_reconnect = 2
+    def run(self):
+        try:
+            self._connect()
+            self._communicate()
+        finally:
+            self._close()
 
     def _connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.connect(self._addr)
-        self._log(f"Connected to: {self._addr}")
-        return sock
+        while True:
+            try:
+                self._log(f"Connecting to {self.addr[0]}:{self.addr[1]}")
+                sock.connect(self.addr)
+                break
+            except ConnectionError:
+                self._log(f"Connection refused - retry in {self.time_to_reconnect}s")
+                sleep(self.time_to_reconnect)
+        self._log(f"Connected to: {self.addr}")
+        self.sock = sock
 
     def _close(self):
-        if self._sock is None:
-            return
-        try:
-            self._log(f"Closing cocket...")
-            self._sock.shutdown(socket.SHUT_RDWR)
-            self._sock.close()
-            self._log(f"Socket closed")
-        except OSError as e:
-            self._log(f"Error while closing socket: {e}")
-            pass
+        if self.sock:
+            try:
+                self._log(f"Closing cocket...")
+                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.close()
+                self._log(f"Socket closed")
+            except OSError as e:
+                self._log(f"Error while closing socket: {e}")
 
-    def _recv_data(self, size):
-        data = b""
-        while len(data) < size:
-            more = self._socket.recv(size - len(data))
-            if not more:
-                raise IOError("Socket closed before all data received")
-            data += more
-        return data
+    def _communicate(self):
+        def recv_size(size):
+            data = b""
+            while len(data) < size:
+                more = self.sock.recv(size - len(data))
+                if not more:
+                    raise IOError("Socket closed before all data received")
+                data += more
+            return data
 
-    def run(self):
         def send(exit_event: Event):
-            q = messaging.q_vehicle_sensors.get_consumer()
-            self._socket.settimeout(5.0)  # TODO: handle gracefully
+            q = messaging.q_sensor_fusion.get_consumer()
             while not exit_event.is_set():
                 try:
-                    data: ControlData = q.get(timeout=1)
+                    data: SensorFusionData = q.get(timeout=1000)
                     if data is None:
                         self._log("Timeout on data send")
-                        self._socket.sendall(data.to_bytes())
+                        continue
+                    self.sock.sendall(data.to_bytes())
                 except socket.timeout:
                     if exit_event.is_set():
                         break
@@ -216,8 +230,8 @@ class TcpClient(Process):
             q = messaging.q_control.get_producer()
             while not exit_event.is_set():
                 try:
-                    size = self._socket.recv(ControlData.SIZE)
-                    data = self._recv_data(size)
+                    size = self.sock.recv(ControlData.SIZE)
+                    data = recv_size(size)
                     q.put(data)
                 except OSError:
                     self._log("Recv failed - connection closed by client")
@@ -228,11 +242,10 @@ class TcpClient(Process):
         t_recv = Thread(target=recv, args=[exit_event], daemon=True)
         t_send = Thread(target=send, args=[exit_event], daemon=True)
         ts = [t_recv, t_send]
-        [t.start() for t in ts]
-        exit_event.wait()
-        self._log("Shutting down send and recv threads..")
-        [t.join() for t in ts]
-        self._log("send and recv threads shut down")
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
 
     def _log(self, msg: str):
         print(f"[{self.__class__.__name__}] {msg}")
@@ -299,6 +312,7 @@ class TcpConnection:
     def run(self):
         def send(exit_event: Event):
             q = messaging.q_control.get_consumer()
+            # TODO: remove timeout
             self._socket.settimeout(5.0)  # Set a timeout of 1 second
             while not exit_event.is_set():
                 try:
