@@ -11,7 +11,7 @@ from cv2 import imencode, IMWRITE_JPEG_QUALITY
 
 
 from modules.messaging import messaging
-from datalink.data import JPGImageData, RawImageData, ControlData, SensorData, SimData, SensorFusionData
+from datalink.data import JPGImageData, RawImageData, ControlData, SensorData, SimData, RealData
 
 MAX_DGRAM_SIZE = 2**16
 
@@ -210,10 +210,10 @@ class TcpClient(Process):
             return data
 
         def send(exit_event: Event):
-            q = messaging.q_sensor_fusion.get_consumer()
+            q = messaging.q_processing.get_consumer()
             while not exit_event.is_set():
                 try:
-                    data: SensorFusionData = q.get(timeout=1000)
+                    data: RealData = q.get(timeout=1000)
                     if data is None:
                         self._log("Timeout on data send")
                         continue
@@ -242,10 +242,8 @@ class TcpClient(Process):
         t_recv = Thread(target=recv, args=[exit_event], daemon=True)
         t_send = Thread(target=send, args=[exit_event], daemon=True)
         ts = [t_recv, t_send]
-        for t in ts:
-            t.start()
-        for t in ts:
-            t.join()
+        for t in ts: t.start()
+        for t in ts: t.join()
 
     def _log(self, msg: str):
         print(f"[{self.__class__.__name__}] {msg}")

@@ -2,8 +2,10 @@ import struct
 import numpy as np
 import pickle
 
-from typing import Type, Any
+from typing import Type, Any, Iterable
 
+# Serialization meta-classes
+# -------------------------------------------------------------------------------------------------
 
 class SerializableMeta(type):
     """Just to make sure every data class is correctly defined"""
@@ -64,6 +66,7 @@ class SerializableComplex(Serializable):
         return b"".join([c.to_bytes() for c in self.to_list()])
 
 
+# General
 # -------------------------------------------------------------------------------------------------
 
 
@@ -110,6 +113,10 @@ class Pose(SerializableComplex):
         return [self.position, self.rotation]
 
 
+# Sensors
+# -------------------------------------------------------------------------------------------------
+ 
+
 class IMUData(SerializablePrimitive):
     FORMAT = "=Q6d"
     SIZE = struct.calcsize(FORMAT)
@@ -134,44 +141,11 @@ class EncoderData(SerializablePrimitive):
         self.position = position
         self.magnitude = magnitude
 
+    def __str__(self):
+        return f"tst: {self.timestamp}, pos: {self.position}, mag: {self.magnitude}"
+
     def to_list(self):
         return [self.timestamp, self.position, self.magnitude]
-
-
-class SensorFusionData:
-    def __init__(self, timestamp: int, last_timestamp: int, camera, encoders, imu):
-        self.timestamp = timestamp
-        self.last_timestamp = last_timestamp
-        self.camera = camera
-        self.encoders = encoders
-        self.imu = imu
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        return pickle.loads(data)
-
-    def to_bytes(self):
-        data_bytes = pickle.dumps(self)
-        return struct.pack("I", len(data_bytes)) + data_bytes
-
-class ActuatorsData(SerializablePrimitive):
-    FORMAT = "=Q3d"
-    SIZE = struct.calcsize(FORMAT)
-
-    def __init__(
-        self,
-        timestamp: int,
-        motor_power: float,
-        steering_angle: float,
-        speed: float,
-    ):
-        self.timestamp = timestamp
-        self.motor_power = motor_power
-        self.steering_angle = steering_angle
-        self.speed = speed
-
-    def to_list(self):
-        return [self.timestamp, self.motor_power, self.steering_angle, self.speed]
 
 
 class RawImageData(Serializable):
@@ -220,6 +194,7 @@ class JPGImageData(Serializable):
         return struct.calcsize("=Q") + len(self.jpg)
 
 
+# DEPRECATED
 class SensorData(SerializableComplex):
     COMPONENTS = [IMUData, EncoderData, EncoderData, Pose]
     SIZE = sum([c.SIZE for c in COMPONENTS])
@@ -237,6 +212,52 @@ class SensorData(SerializableComplex):
     def to_list(self):
         return [self.imu, self.rleft_encoder, self.rright_encoder]
 
+class SpeedometerData:
+    def __init__(self, timestamp: int, dt: float, distance: float, speed: float, encoder_data: EncoderData):
+        self.timestamp = timestamp
+        self.dt = dt
+        self.distance = distance
+        self.speed = speed
+        self.encoder_data = encoder_data
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "SpeedometerData":
+        return pickle.loads(data)        
+
+    def to_bytes(self):
+        return pickle.dumps(self)
+
+# TODO: update datatypes
+class SensorFusionData:
+    def __init__(
+        self,
+        timestamp: int,
+        last_timestamp: int,
+        dt: float,
+        avg_speed: float,
+        camera: JPGImageData,
+        speedometer: Iterable[SpeedometerData],
+        imu: Iterable[IMUData],
+    ):
+        self.timestamp = timestamp
+        self.last_timestamp = last_timestamp
+        self.dt = dt
+        self.avg_speed = avg_speed
+        self.camera = camera
+        self.speedometer = speedometer
+        self.imu = imu
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "SensorFusionData":
+        return pickle.loads(data)
+
+    def to_bytes(self):
+        data_bytes = pickle.dumps(self)
+        return struct.pack("I", len(data_bytes)) + data_bytes
+    
+# Common
+# -------------------------------------------------------------------------------------------------
+
 
 class ControlData(SerializablePrimitive):
     FORMAT = "=Q2d"
@@ -249,6 +270,43 @@ class ControlData(SerializablePrimitive):
 
     def to_list(self):
         return [self.timestamp, self.speed, self.steering_angle]
+
+
+# Real vehicle data
+# -------------------------------------------------------------------------------------------------
+
+
+class ActuatorsData(SerializablePrimitive):
+    FORMAT = "=Q3d"
+    SIZE = struct.calcsize(FORMAT)
+
+    def __init__(
+        self,
+        timestamp: int,
+        motor_power: float,
+        steering_angle: float,
+    ):
+        self.timestamp = timestamp
+        self.motor_power = motor_power
+        self.steering_angle = steering_angle
+
+    def to_list(self):
+        return [self.timestamp, self.motor_power, self.steering_angle]
+
+
+class RealData:
+    def __init__(self, timestamp, sensor_fusion_data, actuators_data):
+        self.timestamp = timestamp
+        self.sensor_fusion_data = sensor_fusion_data
+        self.actuators_data = actuators_data
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "RealData":
+        return pickle.loads(data)
+    
+    def to_bytes(self) -> bytes:
+        data_bytes = pickle.dumps(self)
+        return struct.pack("I", len(data_bytes)) + data_bytes
 
 
 # Simulation
