@@ -7,6 +7,7 @@ from typing import Type, Any, Iterable
 # Serialization meta-classes
 # -------------------------------------------------------------------------------------------------
 
+
 class SerializableMeta(type):
     """Just to make sure every data class is correctly defined"""
 
@@ -115,7 +116,7 @@ class Pose(SerializableComplex):
 
 # Sensors
 # -------------------------------------------------------------------------------------------------
- 
+
 
 class IMUData(SerializablePrimitive):
     FORMAT = "=Q6d"
@@ -212,8 +213,11 @@ class SensorData(SerializableComplex):
     def to_list(self):
         return [self.imu, self.rleft_encoder, self.rright_encoder]
 
+
 class SpeedometerData:
-    def __init__(self, timestamp: int, dt: float, distance: float, speed: float, encoder_data: EncoderData):
+    def __init__(
+        self, timestamp: int, dt: float, distance: float, speed: float, encoder_data: EncoderData
+    ):
         self.timestamp = timestamp
         self.dt = dt
         self.distance = distance
@@ -222,12 +226,12 @@ class SpeedometerData:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "SpeedometerData":
-        return pickle.loads(data)        
+        return pickle.loads(data)
 
     def to_bytes(self):
         return pickle.dumps(self)
 
-# TODO: update datatypes
+
 class SensorFusionData:
     def __init__(
         self,
@@ -254,7 +258,8 @@ class SensorFusionData:
     def to_bytes(self):
         data_bytes = pickle.dumps(self)
         return struct.pack("I", len(data_bytes)) + data_bytes
-    
+
+
 # Common
 # -------------------------------------------------------------------------------------------------
 
@@ -295,7 +300,9 @@ class ActuatorsData(SerializablePrimitive):
 
 
 class RealData:
-    def __init__(self, timestamp, sensor_fusion_data, actuators_data):
+    def __init__(
+        self, timestamp: int, sensor_fusion_data: SensorFusionData, actuators_data: ActuatorsData
+    ):
         self.timestamp = timestamp
         self.sensor_fusion_data = sensor_fusion_data
         self.actuators_data = actuators_data
@@ -303,7 +310,7 @@ class RealData:
     @classmethod
     def from_bytes(cls, data: bytes) -> "RealData":
         return pickle.loads(data)
-    
+
     def to_bytes(self) -> bytes:
         data_bytes = pickle.dumps(self)
         return struct.pack("I", len(data_bytes)) + data_bytes
