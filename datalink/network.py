@@ -327,7 +327,7 @@ class TcpConnection:
 
         def recv(exit_event: Event):
             # q = messaging.q_simulation.get_producer()
-            q = messaging.q_sensor_fusion.get_producer()
+            q = messaging.q_real.get_producer()
             while not exit_event.is_set():
                 try:
                     size_bytes = self._socket.recv(4)
