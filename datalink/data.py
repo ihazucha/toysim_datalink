@@ -147,10 +147,10 @@ class SensorFusionData:
         self.imu = imu
 
     @classmethod
-    def from_bytes(cls, data: bytes):
+    def from_bytes(cls, data: bytes) -> "SensorFusionData":
         return pickle.loads(data)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         data_bytes = pickle.dumps(self)
         return struct.pack("I", len(data_bytes)) + data_bytes
 

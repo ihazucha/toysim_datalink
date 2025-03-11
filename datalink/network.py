@@ -281,6 +281,8 @@ class TcpServer(Process):
 class TcpConnection:
     def __init__(self, socket: socket):
         self._socket = socket
+        # TODO: remove timeout
+        self._socket.settimeout(5.0)  # Set a timeout of 1 second
 
     def __del__(self):
         self._close()
@@ -312,8 +314,6 @@ class TcpConnection:
     def run(self):
         def send(exit_event: Event):
             q = messaging.q_control.get_consumer()
-            # TODO: remove timeout
-            self._socket.settimeout(5.0)  # Set a timeout of 1 second
             while not exit_event.is_set():
                 try:
                     data: ControlData = q.get(timeout=1)
@@ -332,7 +332,11 @@ class TcpConnection:
             q = messaging.q_sensor_fusion.get_producer()
             while not exit_event.is_set():
                 try:
-                    size = struct.unpack("I", self._socket.recv(4))[0]
+                    size_bytes = self._socket.recv(4)
+                    if not size_bytes:
+                        exit_event.set()
+                        break
+                    size = struct.unpack("I", size_bytes)[0]
                     data = self._recv_data(size)
                     q.put(data)
                 except OSError:
