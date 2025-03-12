@@ -1,6 +1,5 @@
 import struct
 import socket
-import sys
 
 from time import sleep
 
@@ -25,7 +24,6 @@ class ClassLogger:
         name = f" - {self.name}" if hasattr(self, "name") else ""
         start = "" if append else f"[{self.__class__.__name__}{name}] "
         print(f"{start}{msg}", end=end)
-        sys.stdout.flush()
 
 
 # Classes
