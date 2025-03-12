@@ -21,7 +21,7 @@ def get_local_ip() -> str:
 
 class ClassLogger:
     def log(self, msg: str,  append=False, end="\n"):
-        name = f" - {self._id}" if hasattr(self, "id") else ""
+        name = f" - {self._id}" if hasattr(self, "_id") else ""
         start = "" if append else f"[{self.__class__.__name__}{name}] "
         print(f"{start}{msg}", end=end)
 
@@ -125,7 +125,7 @@ class TcpServer(Process, ClassLogger):
         self.addr = addr
         self.q_recv = q_recv
         self.q_send = q_send
-        self.id = id
+        self._id = id
         self.sock = None
         self._bind_listen()
 
@@ -186,7 +186,7 @@ class TcpConnection(ClassLogger):
             q = self.q_send.get_consumer()
             while not exit_event.is_set():
                 try:
-                    data: Serializable = q.get()
+                    data: Serializable = q.get(timeout=100)
                     if data:
                         self.sock.sendall(data.to_bytes())
                 except socket.timeout:
