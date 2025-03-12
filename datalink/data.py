@@ -22,9 +22,6 @@ class SerializableMeta(type):
 
 
 class Serializable(metaclass=SerializableMeta):
-    required_attributes = ["SIZE"]
-    SIZE: int = 0
-
     @classmethod
     def from_bytes(cls, data: bytes):
         raise NotImplementedError()
@@ -299,7 +296,7 @@ class ActuatorsData(SerializablePrimitive):
         return [self.timestamp, self.motor_power, self.steering_angle]
 
 
-class RealData:
+class RealData(Serializable):
     def __init__(
         self, timestamp: int, sensor_fusion_data: SensorFusionData, actuators_data: ActuatorsData
     ):
