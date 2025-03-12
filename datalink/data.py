@@ -298,11 +298,16 @@ class ActuatorsData(SerializablePrimitive):
 
 class RealData(Serializable):
     def __init__(
-        self, timestamp: int, sensor_fusion_data: SensorFusionData, actuators_data: ActuatorsData
+        self,
+        timestamp: int,
+        sensor_fusion: SensorFusionData,
+        actuators: ActuatorsData,
+        control: ControlData,
     ):
         self.timestamp = timestamp
-        self.sensor_fusion_data = sensor_fusion_data
-        self.actuators_data = actuators_data
+        self.sensor_fusion = sensor_fusion
+        self.actuators = actuators
+        self.control = control
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "RealData":
