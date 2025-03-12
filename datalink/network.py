@@ -1,5 +1,7 @@
 import struct
 import socket
+import sys
+
 from time import sleep
 
 from multiprocessing import Process
@@ -20,10 +22,10 @@ def get_local_ip() -> str:
 
 class ClassLogger:
     def log(self, msg: str,  append=False, end="\n"):
-        start = "" if append else f"[{self.__class__.__name__}] "
-        if hasattr(self, "name"):
-            start += f"({self.name})"
+        name = f" - {self.name}" if hasattr(self, "name") else ""
+        start = "" if append else f"[{self.__class__.__name__}{name}] "
         print(f"{start}{msg}", end=end)
+        sys.stdout.flush()
 
 
 # Classes
@@ -134,18 +136,18 @@ class TcpServer(Process, ClassLogger):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(self.addr)
         sock.listen()
-        self.log(f"Listening on: {self.addr}")
+        self.log(f"Listening on {self.addr[0]}:{self.addr[1]}")
         self.sock = sock
 
     def run(self):
         while True:
             self.log(f"Waiting for connection... ", end="")
             sock, addr = self.sock.accept()
-            self.log(f"connected: {addr}", append=True)
+            self.log(f"connected from {addr[0]}:{addr[1]}", append=True)
 
             connection = TcpConnection(sock=sock, q_recv=self.q_recv, q_send=self.q_send)
             connection.run()
-            self.log(f"Connection closed: {addr}")
+            self.log(f"Client {addr[0]}:{addr[1]} disconnected")
 
 
 class TcpConnection(ClassLogger):
