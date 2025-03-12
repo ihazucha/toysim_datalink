@@ -1,5 +1,6 @@
 import struct
 import socket
+import sys
 
 from time import sleep
 
@@ -21,7 +22,7 @@ def get_local_ip() -> str:
 
 class ClassLogger:
     def log(self, msg: str,  append=False, end="\n"):
-        name = f" - {self._id}" if hasattr(self, "id") else ""
+        name = f" - {self._id}" if hasattr(self, "_id") else ""
         start = "" if append else f"[{self.__class__.__name__}{name}] "
         print(f"{start}{msg}", end=end)
 
@@ -40,11 +41,12 @@ class TcpClient(Process, ClassLogger):
         self.time_to_reconnect = 2
 
     def run(self):
-        try:
-            self._connect()
-            self._communicate()
-        finally:
-            self._close()
+        while True:
+            try:
+                self._connect()
+                self._communicate()
+            finally:
+                self._close()
 
     def _connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -52,23 +54,27 @@ class TcpClient(Process, ClassLogger):
         while True:
             try:
                 self.log(f"Connecting to {self.addr[0]}:{self.addr[1]} ... ", end="")
+                sys.stdout.flush()
                 sock.connect(self.addr)
                 break
             except ConnectionError:
                 self.log(f"refused - retry in {self.time_to_reconnect}s", append=True)
                 sleep(self.time_to_reconnect)
+            except TimeoutError:
+                self.log(f"timed out - retry", append=True)
         self.log(f"success", append=True)
         self.sock = sock
 
     def _close(self):
         if self.sock:
             try:
-                self.log(f"Closing cocket... ", end="")
+                self.log(f"Closing socket ... ", end="")
                 self.sock.shutdown(socket.SHUT_RDWR)
                 self.sock.close()
                 self.log(f"success", append=True)
-            except OSError as e:
-                self.log(f"error: {e}", append=True)
+            except Exception as e:
+                # self.log(f"error: {e}", append=True)
+                self.log(f"already closed", append=True)
 
     def _communicate(self):
         def recv_size(size):
@@ -94,18 +100,17 @@ class TcpClient(Process, ClassLogger):
                         break
                 except OSError:
                     exit_event.set()
-                    self.log("Send failed - client disconnected")
+                    # self.log("Send failed - client disconnected")
                     break
 
         def recv(exit_event: Event):
             q = self.q_recv.get_producer()
             while not exit_event.is_set():
                 try:
-                    size = self.sock.recv(ControlData.SIZE)
-                    data = recv_size(size)
+                    data = recv_size(ControlData.SIZE)
                     q.put(data)
                 except OSError:
-                    self.log("Recv failed - client disconnected")
+                    # self.log("Recv failed - client disconnected")
                     exit_event.set()
                     break
 
@@ -114,7 +119,7 @@ class TcpClient(Process, ClassLogger):
         t_send = Thread(target=send, args=[exit_event], daemon=True)
         ts = [t_recv, t_send]
         for t in ts:
-            t.start()
+            t.start()    
         for t in ts:
             t.join()
 
@@ -164,7 +169,7 @@ class TcpConnection(ClassLogger):
         if self.sock is None:
             return
         try:
-            self.log(f"Closing socket... ", end="")
+            self.log(f"Closing socket ... ", end="")
             self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
             self.log(f"success", append=True)
@@ -194,7 +199,7 @@ class TcpConnection(ClassLogger):
                         break
                 except OSError:
                     exit_event.set()
-                    self.log("Send failed - client disconnected")
+                    # self.log("Send failed - client disconnected")
                     break
 
         def recv(exit_event: Event):
@@ -209,7 +214,7 @@ class TcpConnection(ClassLogger):
                     data = self._recv_data(size)
                     q.put(data)
                 except OSError:
-                    self.log("Recv failed - client disconnected")
+                    # self.log("Recv failed - client disconnected")
                     exit_event.set()
                     break
 
