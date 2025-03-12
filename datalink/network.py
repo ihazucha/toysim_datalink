@@ -21,7 +21,7 @@ def get_local_ip() -> str:
 
 class ClassLogger:
     def log(self, msg: str,  append=False, end="\n"):
-        name = f" - {self.name}" if hasattr(self, "name") else ""
+        name = f" - {self._id}" if hasattr(self, "id") else ""
         start = "" if append else f"[{self.__class__.__name__}{name}] "
         print(f"{start}{msg}", end=end)
 
@@ -120,12 +120,12 @@ class TcpClient(Process, ClassLogger):
 
 
 class TcpServer(Process, ClassLogger):
-    def __init__(self, addr: tuple, q_recv: SPMCQueue, q_send: SPMCQueue, name: str):
+    def __init__(self, addr: tuple, q_recv: SPMCQueue, q_send: SPMCQueue, id: str):
         super().__init__()
         self.addr = addr
         self.q_recv = q_recv
         self.q_send = q_send
-        self.name = name
+        self.id = id
         self.sock = None
         self._bind_listen()
 
@@ -186,7 +186,7 @@ class TcpConnection(ClassLogger):
             q = self.q_send.get_consumer()
             while not exit_event.is_set():
                 try:
-                    data: Serializable = q.get(timeout=1)
+                    data: Serializable = q.get()
                     if data:
                         self.sock.sendall(data.to_bytes())
                 except socket.timeout:
