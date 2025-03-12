@@ -19,8 +19,10 @@ def get_local_ip() -> str:
 
 
 class ClassLogger:
-    def log(self, msg: str, append=False, end="\n"):
+    def log(self, msg: str,  append=False, end="\n"):
         start = "" if append else f"[{self.__class__.__name__}] "
+        if hasattr(self, "name"):
+            start += f"({self.name})"
         print(f"{start}{msg}", end=end)
 
 
@@ -118,11 +120,12 @@ class TcpClient(Process, ClassLogger):
 
 
 class TcpServer(Process, ClassLogger):
-    def __init__(self, addr: tuple, q_recv: SPMCQueue, q_send: SPMCQueue):
+    def __init__(self, addr: tuple, q_recv: SPMCQueue, q_send: SPMCQueue, name: str):
         super().__init__()
         self.addr = addr
         self.q_recv = q_recv
         self.q_send = q_send
+        self.name = name
         self.sock = None
         self._bind_listen()
 
@@ -216,6 +219,4 @@ class TcpConnection(ClassLogger):
         ts = [t_recv, t_send]
         [t.start() for t in ts]
         exit_event.wait()
-        self.log("Terminating send and recv threads... ", end="")
         [t.join() for t in ts]
-        self.log("success", append=True)
