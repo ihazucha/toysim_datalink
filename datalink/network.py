@@ -60,8 +60,9 @@ class TcpClient(Process, ClassLogger):
             except ConnectionError:
                 self.log(f"refused - retry in {self.time_to_reconnect}s", append=True)
                 sleep(self.time_to_reconnect)
-            except TimeoutError:
-                self.log(f"timed out - retry", append=True)
+            except (TimeoutError, BlockingIOError):
+                self.log(f"timed out, retry in {self.time_to_reconnect}s", append=True)
+                sleep(self.time_to_reconnect)
         self.log(f"success", append=True)
         self.sock = sock
 
