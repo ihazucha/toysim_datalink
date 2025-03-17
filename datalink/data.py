@@ -221,6 +221,9 @@ class SpeedometerData:
         self.speed = speed
         self.encoder_data = encoder_data
 
+    def __str__(self):
+        return str(self.__dict__)
+
     @classmethod
     def from_bytes(cls, data: bytes) -> "SpeedometerData":
         return pickle.loads(data)
@@ -228,6 +231,10 @@ class SpeedometerData:
     def to_bytes(self):
         return pickle.dumps(self)
 
+class SpeedometersData:
+    def __init__(self, right_rear: SpeedometerData, left_rear: SpeedometerData):
+        self.right_rear = right_rear
+        self.left_rear = left_rear
 
 class SensorFusionData:
     def __init__(

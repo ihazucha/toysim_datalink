@@ -51,10 +51,10 @@ class TcpClient(Process, ClassLogger):
     def _connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.settimeout(0.1)
         while True:
             try:
                 self.log(f"Connecting to {self.addr[0]}:{self.addr[1]} ... ", end="")
-                sys.stdout.flush()
                 sock.connect(self.addr)
                 break
             except ConnectionError:
@@ -65,6 +65,7 @@ class TcpClient(Process, ClassLogger):
                 sleep(self.time_to_reconnect)
         self.log(f"success", append=True)
         self.sock = sock
+        sock.settimeout(None)
 
     def _close(self):
         if self.sock:
