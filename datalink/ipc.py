@@ -20,8 +20,6 @@ class SPMCQueueType(Enum):
 class SPMCQueue:
     """Single Producer Multiple Consumers Queue using ZMQ IPC sockets"""
 
-    ZMQ_CONTEXT = zmq.Context()
-
     def __init__(self, name: str, type: SPMCQueueType, port: int | None = None, no_queue=True):
         assert (
             type == SPMCQueueType.IPC or port
@@ -34,7 +32,7 @@ class SPMCQueue:
         self.has_producer = Value("b", False)
 
     def get_producer(self):
-        assert not self.has_producer.value, f"[{self.__class__.__name__}] Producer already exists!"
+        # assert not self.has_producer.value, f"[{self.__class__.__name__}] Producer already exists!"
         self.has_producer.value = True
         return SPMCQueue.Producer(
             port=self.port,
@@ -62,7 +60,7 @@ class SPMCQueue:
             self._name = name
             self._type = type
             self._has_producer = has_producer
-            self._socket = SPMCQueue.ZMQ_CONTEXT.socket(zmq.PUB)
+            self._socket = zmq.Context.instance().socket(zmq.PUB)
 
             if no_queue:
                 # High water mark - limits queue size
@@ -92,7 +90,7 @@ class SPMCQueue:
             self._type = type
             self.last_put_timestamp = None
             self.last_get_timestamp = None
-            self._socket = SPMCQueue.ZMQ_CONTEXT.socket(zmq.SUB)
+            self._socket = zmq.Context.instance().socket(zmq.SUB)
             if no_queue:
                 # High water mark - limits queue size
                 self._socket.set_hwm(1)
