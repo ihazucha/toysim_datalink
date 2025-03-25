@@ -96,7 +96,10 @@ class TcpClient(Process, ClassLogger):
                     if data is None:
                         self.log("Timeout on data send")
                         continue
-                    self.sock.sendall(data.to_bytes())
+                    data_bytes = data.to_bytes()
+                    data_bytes_size = struct.pack("I", len(data_bytes))
+                    self.sock.sendall(data_bytes_size)
+                    self.sock.sendall(data_bytes)
                 except socket.timeout:
                     if exit_event.is_set():
                         break

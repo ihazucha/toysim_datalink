@@ -32,6 +32,14 @@ class Serializable(metaclass=SerializableMeta):
     def to_list(self) -> list:
         raise NotImplementedError()
 
+class SerializablePickle(Serializable):
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        return pickle.loads(data)
+
+    def to_bytes(self):
+        return pickle.dumps(self)
+
 
 class SerializablePrimitive(Serializable):
     required_attributes = ["SIZE", "FORMAT"]
@@ -211,7 +219,7 @@ class SensorData(SerializableComplex):
         return [self.imu, self.rleft_encoder, self.rright_encoder]
 
 
-class SpeedometerData:
+class SpeedometerData(SerializablePickle):
     def __init__(
         self, timestamp: int, dt: float, distance: float, speed: float, encoder_data: EncoderData
     ):
@@ -224,19 +232,12 @@ class SpeedometerData:
     def __str__(self):
         return str(self.__dict__)
 
-    @classmethod
-    def from_bytes(cls, data: bytes) -> "SpeedometerData":
-        return pickle.loads(data)
-
-    def to_bytes(self):
-        return pickle.dumps(self)
-
 class SpeedometersData:
     def __init__(self, right_rear: SpeedometerData, left_rear: SpeedometerData):
         self.right_rear = right_rear
         self.left_rear = left_rear
 
-class SensorFusionData:
+class SensorFusionData(SerializablePickle):
     def __init__(
         self,
         timestamp: int,
@@ -254,14 +255,6 @@ class SensorFusionData:
         self.camera = camera
         self.speedometer = speedometer
         self.imu = imu
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> "SensorFusionData":
-        return pickle.loads(data)
-
-    def to_bytes(self):
-        data_bytes = pickle.dumps(self)
-        return struct.pack("I", len(data_bytes)) + data_bytes
 
 
 # Common
@@ -321,8 +314,7 @@ class RealData(Serializable):
         return pickle.loads(data)
 
     def to_bytes(self) -> bytes:
-        data_bytes = pickle.dumps(self)
-        return struct.pack("I", len(data_bytes)) + data_bytes
+        return pickle.dumps(self)
 
 
 # Simulation
@@ -475,8 +467,28 @@ class PurePursuitPIDConfig:
         self.lookahead_l_min = lookahead_l_min
         self.lookahead_l_max = lookahead_l_max
 
+class PurePursuitConfig:
+    lookahead_factor = 2.2
+    lookahead_l_min = 0.3
+    lookahead_l_max = 2.4
 
-class ProcessedData:
+    def __init__(
+        self,
+        lookahead_factor: float = lookahead_factor,
+        lookahead_l_min: float = lookahead_l_min,
+        lookahead_l_max: float = lookahead_l_max,
+    ):
+        self.lookahead_factor = lookahead_factor
+        self.lookahead_l_min = lookahead_l_min
+        self.lookahead_l_max = lookahead_l_max
+
+class PIDConfig:
+    def __init__(self, kp: float, ki: float, kd: float):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+
+class ProcessedSimData(SerializablePickle):
     def __init__(
         self, begin_timestamp: int, debug_image: np.ndarray, depth: np.ndarray, original: SimData
     ):
@@ -484,3 +496,11 @@ class ProcessedData:
         self.debug_image: np.ndarray = debug_image
         self.depth = depth
         self.original: SimData = original
+
+class ProcessedRealData(SerializablePickle):
+    def __init__(
+        self, begin_timestamp: int, debug_image: np.ndarray, original: RealData
+    ):
+        self.begin_timestamp = begin_timestamp
+        self.debug_image = debug_image
+        self.original = original
