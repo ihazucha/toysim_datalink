@@ -7,7 +7,7 @@ from multiprocessing import Process
 from threading import Thread, Event
 
 # TODO: remove from here, or abstract out form data to prevent loading numpy
-from datalink.data import ControlData, Serializable
+from datalink.data import ControlData, Serializable, SimData
 from datalink.ipc import SPMCQueue
 
 # Helpers

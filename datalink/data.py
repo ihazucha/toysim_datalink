@@ -32,6 +32,7 @@ class Serializable(metaclass=SerializableMeta):
     def to_list(self) -> list:
         raise NotImplementedError()
 
+
 class SerializablePickle(Serializable):
     @classmethod
     def from_bytes(cls, data: bytes):
@@ -117,7 +118,6 @@ class Pose(SerializableComplex):
 
     def to_list(self):
         return [self.position, self.rotation]
-
 
 # Sensors
 # -------------------------------------------------------------------------------------------------
@@ -232,10 +232,12 @@ class SpeedometerData(SerializablePickle):
     def __str__(self):
         return str(self.__dict__)
 
+
 class SpeedometersData:
     def __init__(self, right_rear: SpeedometerData, left_rear: SpeedometerData):
         self.right_rear = right_rear
         self.left_rear = left_rear
+
 
 class SensorFusionData(SerializablePickle):
     def __init__(
@@ -467,6 +469,7 @@ class PurePursuitPIDConfig:
         self.lookahead_l_min = lookahead_l_min
         self.lookahead_l_max = lookahead_l_max
 
+
 class PurePursuitConfig:
     lookahead_factor = 2.2
     lookahead_l_min = 0.3
@@ -482,11 +485,13 @@ class PurePursuitConfig:
         self.lookahead_l_min = lookahead_l_min
         self.lookahead_l_max = lookahead_l_max
 
+
 class PIDConfig:
     def __init__(self, kp: float, ki: float, kd: float):
         self.kp = kp
         self.ki = ki
         self.kd = kd
+
 
 class ProcessedSimData(SerializablePickle):
     def __init__(
@@ -497,10 +502,9 @@ class ProcessedSimData(SerializablePickle):
         self.depth = depth
         self.original: SimData = original
 
+
 class ProcessedRealData(SerializablePickle):
-    def __init__(
-        self, begin_timestamp: int, debug_image: np.ndarray, original: RealData
-    ):
+    def __init__(self, begin_timestamp: int, debug_image: np.ndarray, original: RealData):
         self.begin_timestamp = begin_timestamp
         self.debug_image = debug_image
         self.original = original
