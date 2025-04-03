@@ -28,19 +28,14 @@ class SPMCQueue:
         self.type = type
         self.port = port
         self.no_queue = no_queue
-        # TODO: doesn't work on Windows, every process creates a new instance
-        self.has_producer = Value("b", False)
+        self.producer = None
 
     def get_producer(self):
-        # assert not self.has_producer.value, f"[{self.__class__.__name__}] Producer already exists!"
-        self.has_producer.value = True
-        return SPMCQueue.Producer(
-            port=self.port,
-            name=self.name,
-            type=self.type,
-            has_producer=self.has_producer,
-            no_queue=self.no_queue,
-        )
+        if self.producer is None:
+            self.producer = SPMCQueue.Producer(
+                port=self.port, name=self.name, type=self.type, no_queue=self.no_queue
+            )
+        return self.producer
 
     def get_consumer(self):
         return SPMCQueue.Consumer(
@@ -53,13 +48,11 @@ class SPMCQueue:
             port: int,
             name: str,
             type: SPMCQueueType,
-            has_producer: Synchronized,
             no_queue=True,
         ):
             self._port = port
             self._name = name
             self._type = type
-            self._has_producer = has_producer
             self._socket = zmq.Context.instance().socket(zmq.PUB)
 
             if no_queue:
@@ -78,7 +71,6 @@ class SPMCQueue:
         def __del__(self):
             if self._socket and not self._socket.closed:
                 self._socket.close()
-            self._has_producer.value = False
 
         def put(self, data: Any):
             self._socket.send_pyobj((time_ns(), data))

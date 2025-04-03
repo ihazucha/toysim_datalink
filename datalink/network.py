@@ -32,7 +32,7 @@ class ClassLogger:
 
 
 class TcpClient(Process, ClassLogger):
-    def __init__(self, addr: tuple, q_recv: SPMCQueue, q_send: SPMCQueue):
+    def __init__(self, addr: tuple, q_recv: SPMCQueue = None, q_send: SPMCQueue = None):
         super().__init__()
         self.addr = addr
         self.q_recv = q_recv
@@ -105,7 +105,6 @@ class TcpClient(Process, ClassLogger):
                         break
                 except OSError:
                     exit_event.set()
-                    # self.log("Send failed - client disconnected")
                     break
 
         def recv(exit_event: Event):
@@ -115,18 +114,19 @@ class TcpClient(Process, ClassLogger):
                     data = recv_size(ControlData.SIZE)
                     q.put(data)
                 except OSError:
-                    # self.log("Recv failed - client disconnected")
                     exit_event.set()
                     break
 
         exit_event = Event()
-        t_recv = Thread(target=recv, args=[exit_event], daemon=True)
-        t_send = Thread(target=send, args=[exit_event], daemon=True)
-        ts = [t_recv, t_send]
-        for t in ts:
-            t.start()    
-        for t in ts:
-            t.join()
+        
+        ts = []
+        if self.q_recv:
+            ts.append(Thread(target=recv, args=[exit_event], daemon=True))
+        if self.q_send:   
+            ts.append(Thread(target=send, args=[exit_event], daemon=True))
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+            
 
 
 class TcpServer(Process, ClassLogger):

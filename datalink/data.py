@@ -119,6 +119,7 @@ class Pose(SerializableComplex):
     def to_list(self):
         return [self.position, self.rotation]
 
+
 # Sensors
 # -------------------------------------------------------------------------------------------------
 
@@ -451,11 +452,50 @@ class ImageParams:
 # -------------------------------------------------------------------------------------------------
 
 
+class PurePursuitConfig:
+    def __init__(
+        self,
+        lookahead_factor: float,
+        lookahead_dist_min: float,
+        lookahead_dist_max: float,
+        wheel_base: float,
+        waypoint_shift: float,
+    ):
+        self.lookahead_factor = lookahead_factor
+        self.lookahead_dist_min = lookahead_dist_min
+        self.lookahead_dist_max = lookahead_dist_max
+        self.wheel_base = wheel_base
+        self.waypoint_shift = waypoint_shift
+
+    @classmethod
+    def new_alamak(cls: "PurePursuitConfig") -> "PurePursuitConfig":
+        return cls(
+            lookahead_factor=2.2,
+            lookahead_dist_min=0.6,
+            lookahead_dist_max=2.0,
+            wheel_base=0.185,
+            waypoint_shift=0.180,
+        )
+
+    @classmethod
+    def new_simulation(cls: "PurePursuitConfig") -> "PurePursuitConfig":
+        return cls(
+            lookahead_factor=2.2,
+            lookahead_dist_min=300,
+            lookahead_dist_max=2400,
+            wheel_base=310,
+            waypoint_shift=245,
+        )
+
+
 class PurePursuitPIDConfig:
     speed_setpoint = 2000
     lookahead_factor = 2.2
     lookahead_l_min = 300
     lookahead_l_max = 2400
+    vehicle_wheelbase = 0.185
+    # TODO: replace with proper vehicle reference frame
+    purepursuit_waypoint_shift = 0.245
 
     def __init__(
         self,
@@ -465,22 +505,6 @@ class PurePursuitPIDConfig:
         lookahead_l_max: float = lookahead_l_max,
     ):
         self.speed_setpoint = speed_setpoint
-        self.lookahead_factor = lookahead_factor
-        self.lookahead_l_min = lookahead_l_min
-        self.lookahead_l_max = lookahead_l_max
-
-
-class PurePursuitConfig:
-    lookahead_factor = 2.2
-    lookahead_l_min = 0.3
-    lookahead_l_max = 2.4
-
-    def __init__(
-        self,
-        lookahead_factor: float = lookahead_factor,
-        lookahead_l_min: float = lookahead_l_min,
-        lookahead_l_max: float = lookahead_l_max,
-    ):
         self.lookahead_factor = lookahead_factor
         self.lookahead_l_min = lookahead_l_min
         self.lookahead_l_max = lookahead_l_max
