@@ -481,33 +481,11 @@ class PurePursuitConfig:
     def new_simulation(cls: "PurePursuitConfig") -> "PurePursuitConfig":
         return cls(
             lookahead_factor=2.2,
-            lookahead_dist_min=300,
+            lookahead_dist_min=500,
             lookahead_dist_max=2400,
             wheel_base=310,
             waypoint_shift=245,
         )
-
-
-class PurePursuitPIDConfig:
-    speed_setpoint = 2000
-    lookahead_factor = 2.2
-    lookahead_l_min = 300
-    lookahead_l_max = 2400
-    vehicle_wheelbase = 0.185
-    # TODO: replace with proper vehicle reference frame
-    purepursuit_waypoint_shift = 0.245
-
-    def __init__(
-        self,
-        speed_setpoint: float = speed_setpoint,
-        lookahead_factor: float = lookahead_factor,
-        lookahead_l_min: float = lookahead_l_min,
-        lookahead_l_max: float = lookahead_l_max,
-    ):
-        self.speed_setpoint = speed_setpoint
-        self.lookahead_factor = lookahead_factor
-        self.lookahead_l_min = lookahead_l_min
-        self.lookahead_l_max = lookahead_l_max
 
 
 class PIDConfig:
@@ -517,18 +495,39 @@ class PIDConfig:
         self.kd = kd
 
 
+class RoadmarksData(SerializablePickle):
+    def __init__(self, roadmarks: np.ndarray, path: np.ndarray):
+        self.roadmarks = roadmarks
+        self.path = path
+
+
 class ProcessedSimData(SerializablePickle):
     def __init__(
-        self, begin_timestamp: int, debug_image: np.ndarray, depth: np.ndarray, original: SimData
+        self,
+        begin_timestamp: int,
+        debug_image: np.ndarray,
+        depth: np.ndarray,
+        roadmarks_data: RoadmarksData,
+        original: SimData,
     ):
         self.begin_timestamp = begin_timestamp
         self.debug_image: np.ndarray = debug_image
         self.depth = depth
         self.original: SimData = original
+        self.roadmarks_data = roadmarks_data
 
 
 class ProcessedRealData(SerializablePickle):
-    def __init__(self, begin_timestamp: int, debug_image: np.ndarray, original: RealData):
+    def __init__(
+        self,
+        begin_timestamp: int,
+        control_data: ControlData,
+        debug_image: np.ndarray,
+        roadmarks_data: RoadmarksData,
+        original: RealData,
+    ):
         self.begin_timestamp = begin_timestamp
+        self.control_data = control_data
         self.debug_image = debug_image
+        self.roadmarks_data = roadmarks_data
         self.original = original
