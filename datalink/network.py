@@ -43,29 +43,27 @@ class TcpClient(Process, ClassLogger):
     def run(self):
         while True:
             try:
-                self._connect()
+                if not self._connect():
+                    continue
                 self._communicate()
             finally:
                 self._close()
 
-    def _connect(self):
+    def _connect(self) -> bool:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.settimeout(0.1)
-        while True:
-            try:
-                self.log(f"Connecting to {self.addr[0]}:{self.addr[1]} ... ", end="")
-                sock.connect(self.addr)
-                break
-            except ConnectionError:
-                self.log(f"refused - retry in {self.time_to_reconnect}s", append=True)
-                sleep(self.time_to_reconnect)
-            except (TimeoutError, BlockingIOError):
-                self.log(f"timed out, retry in {self.time_to_reconnect}s", append=True)
-                sleep(self.time_to_reconnect)
-        self.log(f"success", append=True)
-        self.sock = sock
-        sock.settimeout(None)
+        sock.settimeout(0.25)
+        try:
+            self.log(f"Connecting to {self.addr[0]}:{self.addr[1]} ... ", end="")
+            sock.connect(self.addr)
+            sock.settimeout(None)
+            self.sock = sock
+            self.log(f"success", append=True)
+            return True
+        except (TimeoutError, BlockingIOError, ConnectionError) as e:
+            self.log(f"{e.strerror} - retry in {self.time_to_reconnect}s", append=True)
+            sleep(self.time_to_reconnect)
+        return False
 
     def _close(self):
         if self.sock:
@@ -73,6 +71,7 @@ class TcpClient(Process, ClassLogger):
                 self.log(f"Closing socket ... ", end="")
                 self.sock.shutdown(socket.SHUT_RDWR)
                 self.sock.close()
+                self.sock = None
                 self.log(f"success", append=True)
             except Exception as e:
                 # self.log(f"error: {e}", append=True)

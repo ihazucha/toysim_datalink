@@ -2,7 +2,7 @@ import struct
 import numpy as np
 import pickle
 
-from typing import Type, Any, Iterable
+from typing import Type, Any, Iterable, Tuple
 
 # Serialization meta-classes
 # -------------------------------------------------------------------------------------------------
@@ -137,6 +137,15 @@ class IMUData(SerializablePrimitive):
     def to_list(self):
         return [self.timestamp, self.ax, self.ay, self.az, self.wr, self.wp, self.wrs]
 
+class IMU2Data(SerializablePickle):
+    def __init__(self):
+        self.timestamp: int
+        self.accel_linear: Tuple[float, float, float] | None
+        self.gyro: Tuple[float, float, float] | None
+        self.mag: Tuple[float, float, float] | None
+        self.rotation_euler_deg: Tuple[float, float, float] | None
+        self.rotation_quaternion: Tuple[float, float, float, float] | None
+
 
 class EncoderData(SerializablePrimitive):
     FORMAT = "=Qii"
@@ -248,7 +257,7 @@ class SensorFusionData(SerializablePickle):
         avg_speed: float,
         camera: JPGImageData,
         speedometer: Iterable[SpeedometerData],
-        imu: Iterable[IMUData],
+        imu: Iterable[IMU2Data],
     ):
         self.timestamp = timestamp
         self.last_timestamp = last_timestamp
