@@ -211,7 +211,7 @@ class TcpConnection(ClassLogger):
             while not exit_event.is_set():
                 try:
                     size_bytes = self.sock.recv(4)
-                    if not size_bytes:
+                    if len(size_bytes) != 4:
                         exit_event.set()
                         break
                     size = struct.unpack("I", size_bytes)[0]
