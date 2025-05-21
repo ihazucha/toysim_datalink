@@ -138,6 +138,7 @@ class IMUData(SerializablePrimitive):
     def to_list(self):
         return [self.timestamp, self.ax, self.ay, self.az, self.wr, self.wp, self.wrs]
 
+
 class IMU2Data(SerializablePickle):
     def __init__(self):
         self.timestamp: int
@@ -416,19 +417,22 @@ class SimVehicleData:
 
 
 class SimData:
-    FORMAT = "f"
+    FORMAT = "=fQ"
     FORMAT_SIZE = struct.calcsize(FORMAT)
     SIZE = SimCameraData.SIZE + SimVehicleData.SIZE + FORMAT_SIZE
 
-    def __init__(self, camera: SimCameraData, vehicle_data: SimVehicleData, dt: float):
+    def __init__(
+        self, camera: SimCameraData, vehicle_data: SimVehicleData, dt: float, timestamp: int
+    ):
         self.camera = camera
         self.vehicle = vehicle_data
         self.dt = dt
+        self.timestamp = timestamp
 
     def to_bytes(self):
         b = self.camera.to_bytes()
         b += self.vehicle.to_bytes()
-        b += struct.pack(SimData.FORMAT, self.dt)
+        b += struct.pack(SimData.FORMAT, self.dt, self.timestamp)
         return b
 
     @staticmethod
@@ -442,8 +446,8 @@ class SimData:
         vehicle_data = SimVehicleData.from_bytes(data_memory_view[data_start:data_end])
         data_start = data_end
         data_end += struct.calcsize(SimData.FORMAT)
-        dt = struct.unpack(SimData.FORMAT, data_memory_view[data_start:data_end])[0]
-        return SimData(camera_data, vehicle_data, dt)
+        dt, timestamp = struct.unpack(SimData.FORMAT, data_memory_view[data_start:data_end])
+        return SimData(camera_data, vehicle_data, dt, timestamp)
 
 
 # Camera
@@ -514,12 +518,14 @@ class ProcessedSimData(SerializablePickle):
     def __init__(
         self,
         begin_timestamp: int,
+        control_data: ControlData,
         debug_image: np.ndarray,
         depth: np.ndarray,
         roadmarks_data: RoadmarksData,
         original: SimData,
     ):
         self.begin_timestamp = begin_timestamp
+        self.control_data = control_data
         self.debug_image: np.ndarray = debug_image
         self.depth = depth
         self.original: SimData = original
