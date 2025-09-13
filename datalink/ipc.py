@@ -119,8 +119,8 @@ class MPMCProxy(Process):
         self.addr_type = addr_type
 
         if addr_type == AddrType.TCP:
-            self.xpub_addr = f"tcp://*:{ports[0]}"
-            self.xsub_addr = f"tcp://*:{ports[1]}"
+            self.xpub_addr = f"tcp://localhost:{ports[0]}"
+            self.xsub_addr = f"tcp://localhost:{ports[1]}"
         elif addr_type == AddrType.IPC:
             self.xpub_addr = f"ipc://{name}_xpub"
             self.xsub_addr = f"ipc://{name}_xsub"
@@ -139,6 +139,7 @@ class MPMCProxy(Process):
             backend.close()
             return
 
+        print(f"[MPMC Proxy] Starting {self.name_prefix} - frontend on {self.xsub_addr}, backend on {self.xpub_addr}")
         zmq.proxy(frontend, backend)
 
 
@@ -262,20 +263,11 @@ class MPMCQueue(AbstractQueue):
                 if not self._socket.poll(timeout):
                     return None
 
-                topic = self._socket.recv(flags=zmq.NOBLOCK)
-                if self._socket.getsockopt(zmq.RCVMORE):
-                    received_obj = self._socket.recv_pyobj(flags=zmq.NOBLOCK)
-                    self.last_get_timestamp = time_ns()
-
-                    if isinstance(received_obj, tuple) and len(received_obj) == 2:
-                        self.last_put_timestamp = received_obj[0]
-                        actual_data = received_obj[1]
-                        # TODO: implement topics to the rest of the app
-                        return actual_data
-                    else:
-                        return topic, received_obj
-                else:
-                    return None
+                timestamped_data: tuple = self._socket.recv_pyobj(flags=zmq.NOBLOCK)
+                self.last_get_timestamp = time_ns()
+                self.last_put_timestamp = timestamped_data[0]
+                data = timestamped_data[1]
+                return data
             except Exception as e:
                 print(f"[MPMCQueue {self._name} Cons] Error receiving message: {e}")
                 return None
