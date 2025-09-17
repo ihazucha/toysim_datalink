@@ -47,10 +47,10 @@ class SerializablePrimitive(Serializable):
     FORMAT: str = ""
 
     @classmethod
-    def from_bytes(cls, data: bytes):
+    def from_bytes(cls, data: bytes) -> "SerializablePrimitive":
         return cls(*struct.unpack(cls.FORMAT, data))
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return struct.pack(self.__class__.FORMAT, *self.to_list())
 
 
