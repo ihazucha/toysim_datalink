@@ -179,11 +179,12 @@ class MPMCQueue(AbstractQueue):
             q_name=self.name,
         )
 
-    def get_consumer(self) -> "Consumer":
+    def get_consumer(self, topic:bytes=b"") -> "Consumer":
         return MPMCQueue.Consumer(
             proxy_addr=self.xpub_addr,
             q_size=self.q_size,
             q_name=self.name,
+            topic=topic
         )
 
     class Producer:
