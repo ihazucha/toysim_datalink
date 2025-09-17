@@ -1,22 +1,16 @@
-# ToySim Data-link
+# ToySim - Data-link
 
-Common definition of:
+For common definition of:
 
-- Data structures
-- IPC communication (between modules)
-- Network communication (simulation/car <-> ToySim UI)
+* Data structures
+* IPC communication
+* Network communication (simulation/vehicle <-> ToySim UI) 
 
 ## TODO
 
-### Short
+* Fix MPMCQueue topics - currently only messages with no topic can be received
+* Make data structures and communication platform-agnostic (currently Python objects) to use [MCAP](https://mcap.dev) format.
 
-1. Add SPMCQueue IPC variant for Linux (supports IPC using shared memory)
-2. Unify network protocol for simulation and car
-3. Refine Data structures to be more client type (sim/car) agnostic and clearly distinguishable (add header)
-
-### Long
-
-1. For production-grade IPC solution check:
-  - https://github.com/commaai/msgq/
-  - https://github.com/commaai/openpilot/tree/master/cereal
-  - https://capnproto.org/capnp-tool.html
+## Inspiration
+* https://github.com/commaai/msgq/
+* https://github.com/commaai/openpilot/tree/master/cereal
