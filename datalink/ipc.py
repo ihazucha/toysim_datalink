@@ -22,11 +22,12 @@ class AbstractQueue:
 class SPMCQueue(AbstractQueue):
     """Single Producer Multiple Consumers Queue using ZMQ IPC sockets"""
 
-    def __init__(self, name: str, type: AddrType, port: int | None = None, q_size=1):
+    def __init__(self, name: str, type: AddrType, ip: str = "", port: int | None = None, q_size=1):
         assert type == AddrType.IPC or port, f"[{self.__class__.__name__}] Port required for TCP"
 
         self.name = name
         self.type = type
+        self.ip = ip
         self.port = port
         self.q_size = q_size
 
@@ -35,17 +36,17 @@ class SPMCQueue(AbstractQueue):
     def get_producer(self) -> "Producer":
         if self.producer is None:
             self.producer = SPMCQueue.Producer(
-                port=self.port, name=self.name, type=self.type, q_size=self.q_size
+                ip=self.ip, port=self.port, name=self.name, type=self.type, q_size=self.q_size
             )
         return self.producer
 
     def get_consumer(self) -> "Consumer":
         return SPMCQueue.Consumer(
-            port=self.port, name=self.name, type=self.type, q_size=self.q_size
+            ip=self.ip, port=self.port, name=self.name, type=self.type, q_size=self.q_size
         )
 
     class Producer:
-        def __init__(self, name, type, port, q_size):
+        def __init__(self, name, type, ip, port, q_size):
 
             self._socket = zmq.Context.instance().socket(zmq.PUB)
             if q_size == 1:
@@ -53,11 +54,11 @@ class SPMCQueue(AbstractQueue):
             self._socket.set_hwm(q_size)
 
             if type == AddrType.TCP:
-                self._socket.bind(f"tcp://*:{port}")
+                self._socket.bind(f"tcp://{ip if ip else '*'}:{port}")
             elif type == AddrType.IPC:
                 self._socket.bind(f"ipc://{name}")
             else:
-                raise NotImplementedError(f"[SPMCQueue {self._name} Prod] unknown type: '{type}'")
+                raise NotImplementedError(f"[SPMCQueue {name} Prod] unknown type: '{type}'")
 
         def __del__(self):
             self.close()
@@ -70,7 +71,7 @@ class SPMCQueue(AbstractQueue):
             self._socket.send_pyobj((time_ns(), data))
 
     class Consumer:
-        def __init__(self, name, type, port, q_size):
+        def __init__(self, name, type, ip, port, q_size):
             self.last_put_timestamp = None
             self.last_get_timestamp = None
 
@@ -80,11 +81,11 @@ class SPMCQueue(AbstractQueue):
             self._socket.set_hwm(q_size)
 
             if type == AddrType.TCP:
-                self._socket.connect(f"tcp://localhost:{port}")
+                self._socket.connect(f"tcp://{ip if ip else 'localhost'}:{port}")
             elif type == AddrType.IPC:
                 self._socket.connect(f"ipc://{name}")
             else:
-                raise NotImplementedError(f"[SPMCQueue {self._name} Cons] unknown type: '{type}'")
+                raise NotImplementedError(f"[SPMCQueue {name} Cons] unknown type: '{type}'")
 
             self._socket.subscribe("")
 
@@ -108,7 +109,7 @@ class SPMCQueue(AbstractQueue):
 
 
 class MPMCProxy(Process):
-    def __init__(self, name: str, addr_type: AddrType, ports: Tuple[int, int] = None):
+    def __init__(self, name: str, addr_type: AddrType, ip: str = "", ports: Tuple[int, int] = None):
         assert addr_type == AddrType.IPC or (
             isinstance(ports, Iterable) and isinstance(ports[0], int) and isinstance(ports[1], int)
         ), "[Proxy] ports are required for TCP addr type"
@@ -119,8 +120,8 @@ class MPMCProxy(Process):
         self.addr_type = addr_type
 
         if addr_type == AddrType.TCP:
-            self.xpub_addr = f"tcp://localhost:{ports[0]}"
-            self.xsub_addr = f"tcp://localhost:{ports[1]}"
+            self.xpub_addr = f"tcp://{ip if ip else 'localhost'}:{ports[0]}"
+            self.xsub_addr = f"tcp://{ip if ip else 'localhost'}:{ports[1]}"
         elif addr_type == AddrType.IPC:
             self.xpub_addr = f"ipc://{name}_xpub"
             self.xsub_addr = f"ipc://{name}_xsub"
@@ -148,6 +149,7 @@ class MPMCQueue(AbstractQueue):
         self,
         name: str,
         addr_type: AddrType,
+        ip: str = "",
         ports: Tuple[int, int] = None,
         q_size: int = 1,
     ):
@@ -157,12 +159,13 @@ class MPMCQueue(AbstractQueue):
 
         self.name = name
         self.addr_type = addr_type
+        self.ip = ip
         self.ports = ports
         self.q_size = q_size
 
         if addr_type == AddrType.TCP:
-            self.xpub_addr = f"tcp://localhost:{ports[0]}"
-            self.xsub_addr = f"tcp://localhost:{ports[1]}"
+            self.xpub_addr = f"tcp://{self.ip if self.ip else 'localhost'}:{ports[0]}"
+            self.xsub_addr = f"tcp://{self.ip if self.ip else 'localhost'}:{ports[1]}"
         elif addr_type == AddrType.IPC:
             self.xpub_addr = f"ipc://{name}_xpub"
             self.xsub_addr = f"ipc://{name}_xsub"
